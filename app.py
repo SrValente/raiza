@@ -10,22 +10,17 @@ st.set_page_config(page_title="Consulta de Ocorrências - TOTVS", layout="wide")
 st.markdown(
     """
     <style>
-    body {
-        background-color: #FFFFFF; /* Cor de fundo escura */
-        color: #FFFFFF; /* Cor do texto */
-    }
+   
 
     .streamlit-expanderHeader {
         color: #FFA500;
     }
 
     .stButton > button {
-        background-color:  #FFFFFF;
         color: #FFA500;
     }
 
     .stSelectbox, .stMultiselect, .stTextInput, .stSelectSlider, .stNumberInput, .stCheckbox {
-        background-color:  #FFFFFF;
         color: white;
     }
 
