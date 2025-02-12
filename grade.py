@@ -2,7 +2,6 @@ import streamlit as st
 import pandas as pd
 import requests
 from requests.auth import HTTPBasicAuth
-from fpdf import FPDF
 
 st.set_page_config(page_title="Consulta de Grade Horária - TOTVS", layout="wide")
 
@@ -67,55 +66,55 @@ def obter_grade_horario(codturma, codcoligada, codfilial):
         return {"error": "Erro de certificado SSL ao acessar a API"}
     return {"error": "Erro na consulta da grade de horários"}
 
-def gerar_pdf(df, codturma):
-    filename = f"Grade Horária - {codturma}.pdf"
-    pdf = FPDF(orientation="L", unit="mm", format="A4")
-    pdf.set_auto_page_break(auto=True, margin=15)
-    pdf.add_page()
-    pdf.set_font("Arial", style="B", size=14)
-    pdf.cell(280, 10, "Grade Horária", ln=True, align="C")
-    pdf.ln(10)
-    
-    # Configurações de fonte e layout
-    pdf.set_font("Arial", size=8)
-    col_widths = [25] + [45] * (len(df.columns) - 1)  # Ajuste de largura
-    line_height = 6  # Altura base por linha
-    
-    # Cabeçalho
-    for i, col in enumerate(df.columns):
-        pdf.multi_cell(col_widths[i], line_height, col, border=1, align='C', ln=3)
-    pdf.ln(line_height)
-    
-    # Dados com quebra automática
-    df = df.fillna("")
-    for _, row in df.iterrows():
-        start_y = pdf.get_y()
-        max_height = 0
-        
-        # Primeira passada para calcular altura máxima
-        for i, col in enumerate(df.columns):
-            text = str(row[col])
-            text_height = len(pdf.multi_cell(col_widths[i], line_height, text, split_only=True)) * line_height
-            if text_height > max_height:
-                max_height = text_height
-                
-        # Verificar quebra de página
-        if pdf.get_y() + max_height > pdf.page_break_trigger:
-            pdf.add_page()
-            start_y = pdf.get_y()
-        
-        # Segunda passada para desenhar células
-        x = pdf.get_x()
-        for i, col in enumerate(df.columns):
-            text = str(row[col])
-            pdf.set_xy(x, start_y)
-            pdf.multi_cell(col_widths[i], line_height, text, border=1, align='C')
-            x += col_widths[i]
-        
-        pdf.set_xy(pdf.l_margin, start_y + max_height)
-    
-    pdf.output(filename)
-    return filename
+def gerar_html(df, codturma):
+    html = f"""
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <meta charset="UTF-8">
+        <title>Grade Horária - {codturma}</title>
+        <style>
+            @page {{
+                size: A4 landscape;
+                margin: 1cm;
+            }}
+            body {{
+                font-family: Arial, sans-serif;
+                margin: 20px;
+            }}
+            h1 {{
+                color: #FFA500;
+                text-align: center;
+            }}
+            table {{
+                width: 100%;
+                border-collapse: collapse;
+                margin-top: 20px;
+            }}
+            th, td {{
+                border: 1px solid #ddd;
+                padding: 8px;
+                text-align: left;
+                font-size: 12px;
+            }}
+            th {{
+                background-color: #f2f2f2;
+            }}
+        </style>
+    </head>
+    <body>
+        <h1>Grade Horária - {codturma}</h1>
+        {df.to_html(index=False, escape=False)}
+        <script>
+            // Força o diálogo de impressão ao abrir o arquivo
+            window.onload = function() {{
+                window.print();
+            }};
+        </script>
+    </body>
+    </html>
+    """
+    return html
 
 st.title("📅 Consulta de Grade Horária - TOTVS")
 
@@ -133,12 +132,20 @@ if codcoligada and codfilial:
         if st.button("🔎 Consultar Grade Horária"):
             grade = obter_grade_horario(codturma, codcoligada, codfilial)
             if isinstance(grade, list) and len(grade) > 0:
-                df = pd.DataFrame(grade).fillna("")  # Remover None da visualização
+                df = pd.DataFrame(grade).fillna("")
                 st.markdown("### 📅 Grade Horária")
                 st.dataframe(df)
-                pdf_filename = gerar_pdf(df, codturma)
-                with open(pdf_filename, "rb") as f:
-                    st.download_button("📥 Baixar PDF", f, file_name=pdf_filename, mime="application/pdf")
+                
+                # Gera e disponibiliza o HTML
+                html_content = gerar_html(df, codturma)
+                st.download_button(
+                    label="📥 Baixar para PDF",
+                    data=html_content,
+                    file_name=f"Grade Horária - {codturma}.html",
+                    mime="text/html",
+                    help="O arquivo será aberto automaticamente para impressão. Use 'Salvar como PDF' nas opções de impressão do navegador."
+                )
+                
             elif "error" in grade:
                 st.error(f"⚠️ {grade['error']}")
             else:
